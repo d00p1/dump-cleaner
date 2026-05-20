@@ -18,7 +18,5 @@ filterRules:
       - ^b_search_content_tmp$
       - ^b_search_content_stem$
       - ^b_search_content_title$
-      - b_sale_fuser
-      - ^oldis_search$
   - action: locks
     tables: all
