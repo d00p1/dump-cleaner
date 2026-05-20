@@ -1,0 +1,74 @@
+version: 2
+
+project_name: mysql-dump-cleaner
+
+before:
+  hooks:
+    - go test ./...
+
+builds:
+  - id: mysql-dump-cleaner
+    main: ./main.go
+    binary: mysql-dump-cleaner
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w -X github.com/d00p1/filtrate-backups/internal/version.Version={{ .Version }} -X github.com/d00p1/filtrate-backups/internal/version.Commit={{ .Commit }} -X github.com/d00p1/filtrate-backups/internal/version.Date={{ .Date }}
+
+  - id: dumpgen
+    main: ./cmd/dumpgen
+    binary: dumpgen
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w -X github.com/d00p1/filtrate-backups/internal/version.Version={{ .Version }} -X github.com/d00p1/filtrate-backups/internal/version.Commit={{ .Commit }} -X github.com/d00p1/filtrate-backups/internal/version.Date={{ .Date }}
+
+archives:
+  - id: mysql-dump-cleaner
+    ids:
+      - mysql-dump-cleaner
+    name_template: >-
+      {{ .Binary }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
+    formats:
+      - tar.gz
+    format_overrides:
+      - goos: windows
+        formats:
+          - zip
+
+  - id: dumpgen
+    ids:
+      - dumpgen
+    name_template: >-
+      {{ .Binary }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
+    formats:
+      - tar.gz
+    format_overrides:
+      - goos: windows
+        formats:
+          - zip
+
+checksum:
+  name_template: checksums.txt
+
+release:
+  github:
+    owner: d00p1
+    name: mysql-dump-cleaner
+
+changelog:
+  use: git

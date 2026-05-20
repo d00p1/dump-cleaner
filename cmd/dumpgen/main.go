@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/d00p1/filtrate-backups/internal/version"
 	"github.com/d00p1/filtrate-backups/pkg/archive"
 )
 
@@ -26,6 +27,7 @@ func main() {
 		rowsPerInsert int
 		valueSize     int
 		seed          int64
+		showVersion   bool
 	)
 
 	flag.StringVar(&output, "output", "./data/generated_dump_1gb.tar.gz", "output tar.gz path")
@@ -35,7 +37,13 @@ func main() {
 	flag.IntVar(&rowsPerInsert, "rows-per-insert", 1000, "rows per INSERT statement")
 	flag.IntVar(&valueSize, "value-size", 128, "string payload size per row")
 	flag.Int64Var(&seed, "seed", time.Now().UnixNano(), "random seed for payload generation")
+	flag.BoolVar(&showVersion, "version", false, "print version and exit")
 	flag.Parse()
+
+	if showVersion {
+		fmt.Printf("dumpgen %s\n", version.String())
+		return
+	}
 
 	tables := parseTables(tablesRaw)
 	if len(tables) == 0 {
