@@ -70,7 +70,7 @@ release:
   make_latest: true
   github:
     owner: d00p1
-    name: mysql-dump-cleaner
+    name: dump-cleaner
 
 changelog:
   use: git
