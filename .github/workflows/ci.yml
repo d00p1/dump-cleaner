@@ -41,7 +41,7 @@ jobs:
           chmod +x /tmp/hadolint
 
       - name: Run gosec
-        run: ~/go/bin/gosec -no-fail -fmt sarif -results gosec.sarif ./... || true
+        run: ~/go/bin/gosec -no-fail -fmt sarif -out gosec.sarif ./... || true
 
       - name: Run govulncheck
         run: ~/go/bin/govulncheck ./...
