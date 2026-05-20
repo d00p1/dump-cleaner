@@ -60,7 +60,7 @@ func Run(ctx context.Context, opts Options) (Result, error) {
 	}
 
 	filteredDir := filepath.Join(tmpDir, "filtered")
-	if err := os.MkdirAll(filteredDir, 0o755); err != nil {
+	if err := os.MkdirAll(filteredDir, 0o750); err != nil {
 		return Result{}, fmt.Errorf("create filtered dir: %w", err)
 	}
 
@@ -71,22 +71,30 @@ func Run(ctx context.Context, opts Options) (Result, error) {
 		srcPath := filepath.Join(tmpDir, name)
 		dstPath := filepath.Join(filteredDir, name)
 
+		// #nosec G304 -- paths are from extracted files in controlled temp directory
 		srcFile, err := os.Open(srcPath)
 		if err != nil {
 			return Result{}, fmt.Errorf("open extracted file: %w", err)
 		}
 
+		// #nosec G304 -- path is in controlled temp directory
 		dstFile, err := os.Create(dstPath)
 		if err != nil {
-			srcFile.Close()
+			_ = srcFile.Close()
 			return Result{}, fmt.Errorf("create filtered file: %w", err)
 		}
 
 		stats, err := filter.SQLFilter(srcFile, dstFile, opts.Rules, opts.MaxLineBytes)
-		srcFile.Close()
-		dstFile.Close()
+		closeErr := srcFile.Close()
+		closeErr2 := dstFile.Close()
 		if err != nil {
 			return Result{}, fmt.Errorf("filter %s: %w", name, err)
+		}
+		if closeErr != nil {
+			return Result{}, fmt.Errorf("close src file %s: %w", name, closeErr)
+		}
+		if closeErr2 != nil {
+			return Result{}, fmt.Errorf("close dst file %s: %w", name, closeErr2)
 		}
 
 		filteredFiles = append(filteredFiles, name)

@@ -360,23 +360,6 @@ func normalizePatterns(v string) string {
 	return clean
 }
 
-func normalizePatternValue(value any) (string, error) {
-	switch v := value.(type) {
-	case string:
-		return normalizePatterns(v), nil
-	case []string:
-		return strings.Join(v, ":"), nil
-	case []any:
-		parts := make([]string, 0, len(v))
-		for _, item := range v {
-			parts = append(parts, fmt.Sprint(item))
-		}
-		return strings.Join(parts, ":"), nil
-	default:
-		return "", fmt.Errorf("unsupported value type %T", value)
-	}
-}
-
 func normalizeFilterRules(rawRules []rawFilterRule) ([]FilterRule, error) {
 	rules := make([]FilterRule, 0, len(rawRules))
 	for _, raw := range rawRules {
@@ -499,7 +482,7 @@ func validate(cfg Config) error {
 }
 
 func ensureDir(dir string) error {
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return err
 	}
 	return nil

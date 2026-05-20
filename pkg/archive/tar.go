@@ -9,6 +9,8 @@ import (
 	"strings"
 )
 
+const maxExtractSize = 15 * 1024 * 1024 * 1024 // 15 GB
+
 func Pack(src string, writer io.WriteCloser) error {
 
 	if _, err := os.Stat(src); err != nil {
@@ -45,6 +47,7 @@ func Pack(src string, writer io.WriteCloser) error {
 		}
 
 		// open files for taring
+		// #nosec G304 G122 -- source directory is user-specified; walk ensures only files under src are processed
 		f, err := os.Open(file)
 		if err != nil {
 			return err
@@ -65,6 +68,7 @@ func Pack(src string, writer io.WriteCloser) error {
 
 func Unpack(r io.Reader, dst string) error {
 	tr := tar.NewReader(r)
+	var totalRead int64
 
 	for {
 		header, err := tr.Next()
@@ -84,8 +88,17 @@ func Unpack(r io.Reader, dst string) error {
 			continue
 		}
 
+		totalRead += header.Size
+		if totalRead > maxExtractSize {
+			return fmt.Errorf("extraction size limit exceeded (%d bytes)", maxExtractSize)
+		}
+
 		// the target location where the dir/file should be created
-		target := filepath.Join(dst, header.Name)
+		// #nosec G305 -- path traversal validated with HasPrefix check below
+		target := filepath.Clean(filepath.Join(dst, header.Name))
+		if !strings.HasPrefix(target, filepath.Clean(dst)+string(os.PathSeparator)) && target != filepath.Clean(dst) {
+			return fmt.Errorf("illegal file path: %s", header.Name)
+		}
 
 		// the following switch could also be done using fi.Mode(), not sure if there
 		// a benefit of using one vs. the other.
@@ -97,19 +110,24 @@ func Unpack(r io.Reader, dst string) error {
 		// if its a dir and it doesn't exist create it
 		case tar.TypeDir:
 			if _, err := os.Stat(target); err != nil {
-				if err := os.MkdirAll(target, 0755); err != nil {
+				if err := os.MkdirAll(target, 0o750); err != nil {
 					return err
 				}
 			}
 
 		// if it's a file create it
 		case tar.TypeReg:
-			f, err := os.OpenFile(target, os.O_CREATE|os.O_RDWR, os.FileMode(header.Mode))
+			mode := header.Mode
+			if mode > 0o755 {
+				mode = 0o755
+			}
+			f, err := os.OpenFile(target, os.O_CREATE|os.O_RDWR, os.FileMode(mode))
 			if err != nil {
 				return err
 			}
 
 			// copy over contents
+			// #nosec G110 -- decompression bomb mitigated by maxExtractSize check
 			if _, err := io.Copy(f, tr); err != nil {
 				return err
 			}

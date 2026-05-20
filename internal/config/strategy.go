@@ -108,6 +108,7 @@ func normalizeKey(k string) string {
 }
 
 func loadJSON(path string) (fileConfig, error) {
+	// #nosec G304 -- config path is user-specified via CLI
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return fileConfig{}, err
@@ -121,6 +122,7 @@ func loadJSON(path string) (fileConfig, error) {
 }
 
 func loadYAML(path string) (fileConfig, error) {
+	// #nosec G304 -- config path is user-specified via CLI
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return fileConfig{}, err
@@ -142,6 +144,7 @@ func loadTOML(path string) (fileConfig, error) {
 }
 
 func loadCONF(path string) (fileConfig, error) {
+	// #nosec G304 -- config path is user-specified via CLI
 	file, err := os.Open(path)
 	if err != nil {
 		return fileConfig{}, err

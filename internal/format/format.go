@@ -116,6 +116,7 @@ func listFiles(workDir string) ([]string, error) {
 }
 
 func writeFileFromReader(path string, r io.Reader) error {
+	// #nosec G304 -- path is within controlled temp workDir
 	f, err := os.Create(path)
 	if err != nil {
 		return fmt.Errorf("create extracted file: %w", err)
@@ -128,6 +129,7 @@ func writeFileFromReader(path string, r io.Reader) error {
 }
 
 func copyFileToWriter(path string, w io.Writer) error {
+	// #nosec G304 -- path is within controlled temp workDir
 	f, err := os.Open(path)
 	if err != nil {
 		return fmt.Errorf("open filtered file: %w", err)

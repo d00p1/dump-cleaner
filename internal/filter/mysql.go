@@ -9,14 +9,14 @@ import (
 type mysqlBackend struct{}
 
 var (
-	reInsert = regexp.MustCompile("(?i)^INSERT\\s+INTO\\s+(?:`[^`]+`\\.)?`?([^` ]+)`?")
-	reCreate = regexp.MustCompile("(?i)^CREATE\\s+(?:TEMPORARY\\s+)?TABLE\\s+(?:IF\\s+NOT\\s+EXISTS\\s+)?(?:`[^`]+`\\.)?`?([^` (]+)`?")
-	reDrop   = regexp.MustCompile("(?i)^DROP\\s+(?:TEMPORARY\\s+)?TABLE\\s+(?:IF\\s+EXISTS\\s+)?(.+?);?$")
-	reLock   = regexp.MustCompile("(?i)^LOCK\\s+TABLES\\s+(.+?);?$")
-	reUnlock = regexp.MustCompile("(?i)^UNLOCK\\s+TABLES\\b")
+	reInsert = regexp.MustCompile(`(?i)^INSERT\s+INTO\s+(?:` + "`[^`]+`\\.)?" + "`?([^` ]+)`?")
+	reCreate = regexp.MustCompile(`(?i)^CREATE\s+(?:TEMPORARY\s+)?TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(?:` + "`[^`]+`\\.)?" + "`?([^` (]+)`?")
+	reDrop   = regexp.MustCompile(`(?i)^DROP\s+(?:TEMPORARY\s+)?TABLE\s+(?:IF\s+EXISTS\s+)?(.+?);?$`)
+	reLock   = regexp.MustCompile(`(?i)^LOCK\s+TABLES\s+(.+?);?$`)
+	reUnlock = regexp.MustCompile(`(?i)^UNLOCK\s+TABLES\b`)
 
-	reDropEntry = regexp.MustCompile("(?:^|,)\\s*(?:`[^`]+`\\.)?`?([^`,\\s]+)`?")
-	reLockEntry = regexp.MustCompile("(?:^|,)\\s*(?:`[^`]+`\\.)?`?([^`,\\s]+)`?\\s+(?:READ|WRITE)\\b")
+	reDropEntry = regexp.MustCompile(`(?:^|,)\s*(?:` + "`[^`]+`\\.)?" + "`?([^`,\\s]+)`?")
+	reLockEntry = regexp.MustCompile(`(?:^|,)\s*(?:` + "`[^`]+`\\.)?" + "`?([^`,\\s]+)`?" + `\s+(?:READ|WRITE)\b`)
 )
 
 func (mysqlBackend) compileAction(action string) (map[StatementType]struct{}, error) {

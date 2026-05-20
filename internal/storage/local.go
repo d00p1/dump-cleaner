@@ -19,7 +19,7 @@ func (localBackend) Open(_ context.Context, loc Location) (io.ReadCloser, error)
 }
 
 func (localBackend) Create(_ context.Context, loc Location) (io.WriteCloser, error) {
-	if err := os.MkdirAll(filepath.Dir(loc.Path), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(loc.Path), 0o750); err != nil {
 		return nil, fmt.Errorf("create local output dir for %q: %w", loc.Path, err)
 	}
 	file, err := os.Create(loc.Path)

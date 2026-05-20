@@ -3,7 +3,7 @@ name: CI
 on:
   push:
     branches:
-      - main
+      - master
   pull_request:
 
 jobs:
@@ -20,3 +20,40 @@ jobs:
 
       - name: Run tests
         run: go test ./...
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Install security tools
+        run: |
+          go install github.com/securego/gosec/v2/cmd/gosec@latest
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          go install honnef.co/go/tools/cmd/staticcheck@latest
+          curl -sL https://github.com/hadolint/hadolint/releases/latest/download/hadolint-Linux-x86_64 -o /tmp/hadolint
+          chmod +x /tmp/hadolint
+
+      - name: Run gosec
+        run: ~/go/bin/gosec -no-fail -fmt sarif -results gosec.sarif ./... || true
+
+      - name: Run govulncheck
+        run: ~/go/bin/govulncheck ./...
+
+      - name: Run staticcheck
+        run: ~/go/bin/staticcheck ./...
+
+      - name: Run hadolint
+        run: /tmp/hadolint Dockerfile
+
+      - name: Upload gosec results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: gosec.sarif

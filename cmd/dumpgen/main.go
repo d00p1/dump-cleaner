@@ -65,11 +65,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err := os.MkdirAll(filepath.Dir(output), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(output), 0o750); err != nil {
 		fmt.Println("Error:", err)
 		os.Exit(1)
 	}
 
+	// #nosec G404 -- test data generator; cryptographic randomness not needed
 	rng := rand.New(rand.NewSource(seed))
 	sqlBytes, err := generateTarGz(output, tables, targetBytes, rowsPerInsert, valueSize, rng)
 	if err != nil {
@@ -109,6 +110,7 @@ func generateTarGz(output string, tables []string, targetBytes int64, rowsPerIns
 	defer os.RemoveAll(tmpDir)
 
 	sqlPath := filepath.Join(tmpDir, "dump.sql")
+	// #nosec G304 -- path is within controlled temp directory
 	sqlFile, err := os.Create(sqlPath)
 	if err != nil {
 		return 0, fmt.Errorf("create temp sql: %w", err)
@@ -122,6 +124,7 @@ func generateTarGz(output string, tables []string, targetBytes int64, rowsPerIns
 		return 0, err
 	}
 
+	// #nosec G304 -- output path is user-specified via CLI flag
 	out, err := os.Create(output)
 	if err != nil {
 		return 0, fmt.Errorf("create output: %w", err)

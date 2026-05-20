@@ -43,6 +43,7 @@ func newS3Backend(cfg Config) (*s3Backend, error) {
 		loadOpts = append(loadOpts, awsconfig.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(cfg.AccessKey, cfg.SecretKey, cfg.SessionToken)))
 	}
 	if cfg.Insecure {
+		// #nosec G402 -- intentional: S3_INSECURE flag allows self-signed certs for local/dev environments
 		loadOpts = append(loadOpts, awsconfig.WithHTTPClient(&http.Client{Transport: &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}}))
 	}
 
