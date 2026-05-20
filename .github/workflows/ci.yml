@@ -8,6 +8,8 @@ on:
 
 jobs:
   test:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -22,6 +24,9 @@ jobs:
         run: go test ./...
 
   security:
+    permissions:
+      contents: read
+      security-events: write
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
