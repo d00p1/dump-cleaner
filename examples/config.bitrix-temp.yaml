@@ -1,0 +1,24 @@
+# Conservative Bitrix cleanup rules for temporary/service tables.
+# Adjust FILTER_RULES to your project if you want to keep some of them.
+dumpFile: ./data/bitrix-source.tar.gz
+outputFile: ./output/bitrix-filtered_result.tar.gz
+tmpDir: ./tmp
+maxLineBytes: 8388608
+dbDriver: mysql
+mode: once
+filterRules:
+  - action: ddl
+    tables: all
+  - action: insert
+    tables:
+      - ^tmp_
+      - ^b_.+_tmp$
+      - ^b_.+_temp$
+      - ^b_xml_tree_import_1c$
+      - ^b_search_content_tmp$
+      - ^b_search_content_stem$
+      - ^b_search_content_title$
+      - b_sale_fuser
+      - ^oldis_search$
+  - action: locks
+    tables: all

@@ -1,55 +1,62 @@
 package pipeline
 
 import (
-	"compress/gzip"
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
 
 	"github.com/d00p1/filtrate-backups/internal/filter"
-	"github.com/d00p1/filtrate-backups/pkg/archive"
+	"github.com/d00p1/filtrate-backups/internal/format"
+	"github.com/d00p1/filtrate-backups/internal/storage"
 )
 
 type Options struct {
 	InputPath    string
 	OutputPath   string
-	TablesSkip   []string
+	Rules        []filter.Rule
 	TmpDir       string
 	MaxLineBytes int
+	Store        storage.Store
 }
 
 type Result struct {
 	OutputPath    string
 	TotalLines    int
 	FilteredLines int
+	Files         []FileResult
 }
 
-func Run(opts Options) (Result, error) {
+type FileResult struct {
+	Name          string
+	TotalLines    int
+	FilteredLines int
+}
+
+func Run(ctx context.Context, opts Options) (Result, error) {
 	tmpDir, err := os.MkdirTemp(opts.TmpDir, "cache-")
 	if err != nil {
 		return Result{}, fmt.Errorf("mkdir temp: %w", err)
 	}
 	defer os.RemoveAll(tmpDir)
 
-	inputFile, err := os.Open(opts.InputPath)
+	if opts.Store == nil {
+		return Result{}, fmt.Errorf("storage store is required")
+	}
+
+	inputFile, err := opts.Store.Open(ctx, opts.InputPath)
 	if err != nil {
-		return Result{}, fmt.Errorf("open input: %w", err)
+		return Result{}, err
 	}
 	defer inputFile.Close()
 
-	gzReader, err := gzip.NewReader(inputFile)
+	inputFormat, err := format.Resolve(opts.InputPath)
 	if err != nil {
-		return Result{}, fmt.Errorf("gzip reader error: %w", err)
+		return Result{}, err
 	}
-	defer gzReader.Close()
-
-	if err := archive.Unpack(gzReader, tmpDir); err != nil {
-		return Result{}, fmt.Errorf("unpack archive: %w", err)
-	}
-
-	entries, err := os.ReadDir(tmpDir)
+	inputFiles, err := inputFormat.Extract(inputFile, tmpDir)
 	if err != nil {
-		return Result{}, fmt.Errorf("read extracted files: %w", err)
+		return Result{}, err
 	}
 
 	filteredDir := filepath.Join(tmpDir, "filtered")
@@ -58,13 +65,11 @@ func Run(opts Options) (Result, error) {
 	}
 
 	var totalLines, filteredLines int
-	for _, entry := range entries {
-		if entry.IsDir() {
-			continue
-		}
-
-		srcPath := filepath.Join(tmpDir, entry.Name())
-		dstPath := filepath.Join(filteredDir, entry.Name())
+	filteredFiles := make([]string, 0, len(inputFiles))
+	fileResults := make([]FileResult, 0, len(inputFiles))
+	for _, name := range inputFiles {
+		srcPath := filepath.Join(tmpDir, name)
+		dstPath := filepath.Join(filteredDir, name)
 
 		srcFile, err := os.Open(srcPath)
 		if err != nil {
@@ -77,40 +82,42 @@ func Run(opts Options) (Result, error) {
 			return Result{}, fmt.Errorf("create filtered file: %w", err)
 		}
 
-		stats, err := filter.InsertFilter(srcFile, dstFile, opts.TablesSkip, opts.MaxLineBytes)
+		stats, err := filter.SQLFilter(srcFile, dstFile, opts.Rules, opts.MaxLineBytes)
 		srcFile.Close()
 		dstFile.Close()
 		if err != nil {
-			return Result{}, fmt.Errorf("filter %s: %w", entry.Name(), err)
+			return Result{}, fmt.Errorf("filter %s: %w", name, err)
 		}
 
+		filteredFiles = append(filteredFiles, name)
 		totalLines += stats.TotalLines
 		filteredLines += stats.FilteredLines
+		fileResults = append(fileResults, FileResult{
+			Name:          name,
+			TotalLines:    stats.TotalLines,
+			FilteredLines: stats.FilteredLines,
+		})
 	}
 
-	if err := packToTarGz(filteredDir, opts.OutputPath); err != nil {
+	outputFormat, err := format.Resolve(opts.OutputPath)
+	if err != nil {
+		return Result{}, err
+	}
+	if err := packOutput(ctx, opts.Store, outputFormat, filteredDir, filteredFiles, opts.OutputPath); err != nil {
 		return Result{}, err
 	}
 
-	return Result{OutputPath: opts.OutputPath, TotalLines: totalLines, FilteredLines: filteredLines}, nil
+	return Result{OutputPath: opts.OutputPath, TotalLines: totalLines, FilteredLines: filteredLines, Files: fileResults}, nil
 }
 
-func packToTarGz(srcDir, outputFile string) error {
-	if err := os.MkdirAll(filepath.Dir(outputFile), 0o755); err != nil {
-		return fmt.Errorf("create output dir: %w", err)
-	}
-
-	f, err := os.Create(outputFile)
+func packOutput(ctx context.Context, store storage.Store, outputFormat format.Processor, srcDir string, files []string, outputFile string) error {
+	f, err := store.Create(ctx, outputFile)
 	if err != nil {
-		return fmt.Errorf("create output file: %w", err)
+		return err
 	}
 	defer f.Close()
-
-	gzWriter := gzip.NewWriter(f)
-	defer gzWriter.Close()
-
-	if err := archive.Pack(srcDir, gzWriter); err != nil {
-		return fmt.Errorf("pack directory: %w", err)
+	if err := outputFormat.Pack(srcDir, files, f); err != nil {
+		return err
 	}
 	return nil
 }

@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/d00p1/filtrate-backups/docs/config.schema.json",
+  "title": "Filtrate Backups File Config",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "dumpFile": {
+      "type": "string",
+      "description": "Input URI. Supports local paths, file://, and s3://bucket/key with .tar.gz, .sql.gz, or .sql."
+    },
+    "outputFile": {
+      "type": "string",
+      "description": "Output URI. Supports local paths, file://, and s3://bucket/key with .tar.gz, .sql.gz, or .sql.",
+      "default": "./output/filtered_result.tar.gz"
+    },
+    "tmpDir": {
+      "type": "string",
+      "description": "Temporary working directory.",
+      "default": "./tmp"
+    },
+    "maxLineBytes": {
+      "type": "integer",
+      "minimum": 1024,
+      "description": "Maximum bytes allowed for one SQL line.",
+      "default": 8388608
+    },
+    "mode": {
+      "type": "string",
+      "enum": ["once", "schedule"],
+      "default": "once"
+    },
+    "scheduleEvery": {
+      "type": "string",
+      "description": "Go duration string used in schedule mode, for example 30m or 1h."
+    },
+    "dbDriver": {
+      "type": "string",
+      "enum": ["mysql"],
+      "default": "mysql"
+    },
+    "reportFile": {
+      "type": "string",
+      "description": "Write a JSON runtime report to a local path, file://, or s3://bucket/key."
+    },
+    "s3Endpoint": {
+      "type": "string",
+      "description": "S3-compatible endpoint override, for example http://minio:9000."
+    },
+    "s3Region": {
+      "type": "string",
+      "default": "us-east-1"
+    },
+    "s3RequestTimeout": {
+      "type": "string",
+      "description": "Per-request timeout for S3 operations, for example 30s."
+    },
+    "s3RetryMaxAttempts": {
+      "type": "integer",
+      "minimum": 1,
+      "default": 3
+    },
+    "s3AccessKey": {
+      "type": "string",
+      "description": "S3 access key. Prefer env in production."
+    },
+    "s3SecretKey": {
+      "type": "string",
+      "description": "S3 secret key. Prefer env in production."
+    },
+    "s3SessionToken": {
+      "type": "string"
+    },
+    "s3ForcePathStyle": {
+      "type": "boolean",
+      "default": true
+    },
+    "s3Insecure": {
+      "type": "boolean",
+      "default": false
+    },
+    "filterRules": {
+      "type": "array",
+      "description": "Filtering rules for SQL statements.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["action", "tables"],
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": ["insert", "create_table", "drop_table", "ddl", "locks", "all"]
+          },
+          "tables": {
+            "oneOf": [
+              {
+                "type": "string",
+                "const": "all"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  },
+  "required": ["dumpFile"]
+}
