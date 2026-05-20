@@ -65,6 +65,16 @@ func main() {
 		os.Exit(1)
 	}
 
+	absOutput, err := filepath.Abs(output)
+	if err != nil {
+		fmt.Println("Error:", err)
+		os.Exit(1)
+	}
+	if info, err := os.Lstat(absOutput); err == nil && info.Mode()&os.ModeSymlink != 0 {
+		fmt.Println("Error: output path is a symlink, refusing for security")
+		os.Exit(1)
+	}
+
 	if err := os.MkdirAll(filepath.Dir(output), 0o750); err != nil {
 		fmt.Println("Error:", err)
 		os.Exit(1)
@@ -109,9 +119,13 @@ func generateTarGz(output string, tables []string, targetBytes int64, rowsPerIns
 	}
 	defer os.RemoveAll(tmpDir)
 
-	sqlPath := filepath.Join(tmpDir, "dump.sql")
-	// #nosec G304 -- path is within controlled temp directory
-	sqlFile, err := os.Create(sqlPath)
+	tmpRoot, err := os.OpenRoot(tmpDir)
+	if err != nil {
+		return 0, fmt.Errorf("open temp root: %w", err)
+	}
+	defer tmpRoot.Close()
+
+	sqlFile, err := tmpRoot.Create("dump.sql")
 	if err != nil {
 		return 0, fmt.Errorf("create temp sql: %w", err)
 	}
@@ -124,7 +138,7 @@ func generateTarGz(output string, tables []string, targetBytes int64, rowsPerIns
 		return 0, err
 	}
 
-	// #nosec G304 -- output path is user-specified via CLI flag
+	// #nosec G304 -- output path validated against symlinks above
 	out, err := os.Create(output)
 	if err != nil {
 		return 0, fmt.Errorf("create output: %w", err)

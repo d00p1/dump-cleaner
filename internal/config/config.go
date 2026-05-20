@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -68,6 +69,9 @@ func Load(args []string) (Config, error) {
 	cfg := defaultConfig()
 
 	if boot.ConfigPath != "" {
+		if err := validateFilePath(boot.ConfigPath); err != nil {
+			return Config{}, fmt.Errorf("config path: %w", err)
+		}
 		strategy, err := ResolveStrategy(boot.ConfigFormat, boot.ConfigPath)
 		if err != nil {
 			return Config{}, err
@@ -485,5 +489,26 @@ func ensureDir(dir string) error {
 	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return err
 	}
+	return nil
+}
+
+func validateFilePath(path string) error {
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return fmt.Errorf("resolve path: %w", err)
+	}
+
+	info, err := os.Lstat(absPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return fmt.Errorf("stat path: %w", err)
+	}
+
+	if info.Mode()&os.ModeSymlink != 0 {
+		return fmt.Errorf("path %q is a symlink, refusing for security", path)
+	}
+
 	return nil
 }
