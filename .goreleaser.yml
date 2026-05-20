@@ -68,8 +68,6 @@ checksum:
 release:
   draft: false
   make_latest: true
-  retry:
-    max_retries: 5
   github:
     owner: d00p1
     name: mysql-dump-cleaner
