@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/d00p1/filtrate-backups/pkg/archive"
@@ -60,8 +59,13 @@ func (tarGzProcessor) Pack(workDir string, _ []string, w io.WriteCloser) error {
 type sqlProcessor struct{}
 
 func (sqlProcessor) Extract(r io.Reader, workDir string) ([]string, error) {
-	path := filepath.Join(workDir, singleSQLFileName)
-	if err := writeFileFromReader(path, r); err != nil {
+	root, err := os.OpenRoot(workDir)
+	if err != nil {
+		return nil, fmt.Errorf("open work dir: %w", err)
+	}
+	defer root.Close()
+
+	if err := writeFileFromRoot(root, singleSQLFileName, r); err != nil {
 		return nil, err
 	}
 	return []string{singleSQLFileName}, nil
@@ -71,7 +75,7 @@ func (sqlProcessor) Pack(workDir string, files []string, w io.WriteCloser) error
 	if len(files) != 1 {
 		return fmt.Errorf("sql format expects exactly one file, got %d", len(files))
 	}
-	return copyFileToWriter(filepath.Join(workDir, files[0]), w)
+	return copyFileToWriterFromRoot(workDir, files[0], w)
 }
 
 type sqlGzProcessor struct{}
@@ -83,8 +87,13 @@ func (sqlGzProcessor) Extract(r io.Reader, workDir string) ([]string, error) {
 	}
 	defer gzReader.Close()
 
-	path := filepath.Join(workDir, singleSQLFileName)
-	if err := writeFileFromReader(path, gzReader); err != nil {
+	root, err := os.OpenRoot(workDir)
+	if err != nil {
+		return nil, fmt.Errorf("open work dir: %w", err)
+	}
+	defer root.Close()
+
+	if err := writeFileFromRoot(root, singleSQLFileName, gzReader); err != nil {
 		return nil, err
 	}
 	return []string{singleSQLFileName}, nil
@@ -96,7 +105,7 @@ func (sqlGzProcessor) Pack(workDir string, files []string, w io.WriteCloser) err
 	}
 	gzWriter := gzip.NewWriter(w)
 	defer gzWriter.Close()
-	return copyFileToWriter(filepath.Join(workDir, files[0]), gzWriter)
+	return copyFileToWriterFromRoot(workDir, files[0], gzWriter)
 }
 
 func listFiles(workDir string) ([]string, error) {
@@ -115,9 +124,8 @@ func listFiles(workDir string) ([]string, error) {
 	return files, nil
 }
 
-func writeFileFromReader(path string, r io.Reader) error {
-	// #nosec G304 -- path is within controlled temp workDir
-	f, err := os.Create(path)
+func writeFileFromRoot(root *os.Root, name string, r io.Reader) error {
+	f, err := root.Create(name)
 	if err != nil {
 		return fmt.Errorf("create extracted file: %w", err)
 	}
@@ -128,9 +136,14 @@ func writeFileFromReader(path string, r io.Reader) error {
 	return nil
 }
 
-func copyFileToWriter(path string, w io.Writer) error {
-	// #nosec G304 -- path is within controlled temp workDir
-	f, err := os.Open(path)
+func copyFileToWriterFromRoot(workDir string, name string, w io.Writer) error {
+	root, err := os.OpenRoot(workDir)
+	if err != nil {
+		return fmt.Errorf("open work dir: %w", err)
+	}
+	defer root.Close()
+
+	f, err := root.Open(name)
 	if err != nil {
 		return fmt.Errorf("open filtered file: %w", err)
 	}

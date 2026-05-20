@@ -40,6 +40,12 @@ func Run(ctx context.Context, opts Options) (Result, error) {
 	}
 	defer os.RemoveAll(tmpDir)
 
+	tmpRoot, err := os.OpenRoot(tmpDir)
+	if err != nil {
+		return Result{}, fmt.Errorf("open temp root: %w", err)
+	}
+	defer tmpRoot.Close()
+
 	if opts.Store == nil {
 		return Result{}, fmt.Errorf("storage store is required")
 	}
@@ -60,7 +66,7 @@ func Run(ctx context.Context, opts Options) (Result, error) {
 	}
 
 	filteredDir := filepath.Join(tmpDir, "filtered")
-	if err := os.MkdirAll(filteredDir, 0o750); err != nil {
+	if err := tmpRoot.Mkdir("filtered", 0o750); err != nil {
 		return Result{}, fmt.Errorf("create filtered dir: %w", err)
 	}
 
@@ -68,17 +74,12 @@ func Run(ctx context.Context, opts Options) (Result, error) {
 	filteredFiles := make([]string, 0, len(inputFiles))
 	fileResults := make([]FileResult, 0, len(inputFiles))
 	for _, name := range inputFiles {
-		srcPath := filepath.Join(tmpDir, name)
-		dstPath := filepath.Join(filteredDir, name)
-
-		// #nosec G304 -- paths are from extracted files in controlled temp directory
-		srcFile, err := os.Open(srcPath)
+		srcFile, err := tmpRoot.Open(name)
 		if err != nil {
 			return Result{}, fmt.Errorf("open extracted file: %w", err)
 		}
 
-		// #nosec G304 -- path is in controlled temp directory
-		dstFile, err := os.Create(dstPath)
+		dstFile, err := tmpRoot.Create(filepath.Join("filtered", name))
 		if err != nil {
 			_ = srcFile.Close()
 			return Result{}, fmt.Errorf("create filtered file: %w", err)
